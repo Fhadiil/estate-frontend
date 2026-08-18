@@ -1,50 +1,43 @@
-import React, { createContext, useState, useEffect } from 'react';
-import api from '../services/api';
-import { jwtDecode } from 'jwt-decode';
+import React, { createContext, useState, useEffect } from "react";
+import api from "../services/api";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const token = localStorage.getItem('access');
-        if (token) {
-            try {
-                const decoded = jwtDecode(token);
-                setUser(decoded.user);
-            } catch (err) {
-                console.error("Invalid token");
-                localStorage.removeItem('access');
-                localStorage.removeItem('refresh');
-            }
-        }
-        setLoading(false);
-    }, []);
+  useEffect(() => {
+    const current = api.currentUser ? api.currentUser() : null;
+    if (current) setUser(current);
+    setLoading(false);
+  }, []);
 
-    const login = async (email, password) => {
-        const res = await api.post('auth/login/', { email, password });
-        localStorage.setItem('access', res.data.access);
-        localStorage.setItem('refresh', res.data.refresh);
-        const decoded = jwtDecode(res.data.access);
-        setUser(decoded.user);
-        return decoded.user;
-    };
+  const login = async (email, password) => {
+    const res = await api.post("auth/login/", { email, password });
+    // store minimal auth info
+    localStorage.setItem("access", res.data.access);
+    localStorage.setItem("refresh", res.data.refresh);
+    // api.post returns user directly in demo mode
+    setUser(res.data.user);
+    return res.data.user;
+  };
 
-    const register = async (userData) => {
-        await api.post('auth/register/', userData);
-    };
+  const register = async (userData) => {
+    const res = await api.post("auth/register/", userData);
+    return res.data;
+  };
 
-    const logout = () => {
-        localStorage.removeItem('access');
-        localStorage.removeItem('refresh');
-        setUser(null);
-    };
+  const logout = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    if (api.logout) api.logout();
+    setUser(null);
+  };
 
-    return (
-        <AuthContext.Provider value={{ user, login, register, logout, loading }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
